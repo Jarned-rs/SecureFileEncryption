@@ -1,24 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF‑8">
+  <meta charset="UTF-8">
   <title>Secure File Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- MSAL.js from CDN -->
   <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
   <h1>Secure File Manager</h1>
 
   <button id="signInBtn">Sign in to OneDrive</button>
 
-  <h2>Encrypt & Upload File</h2>
-  <input type="file" id="encryptFileInput">
-  <input type="password" id="encryptPassword" placeholder="Master Password">
-  <button id="encryptBtn">Encrypt & Upload</button>
+  <section>
+    <h2>Encrypt & Upload File</h2>
+    <input type="file" id="encryptFileInput">
+    <input type="password" id="encryptPassword" placeholder="Master Password">
+    <button id="encryptBtn">Encrypt & Upload</button>
+  </section>
 
-  <h2>Download & Decrypt File</h2>
-  <select id="fileList"></select>
-  <input type="password" id="decryptPassword" placeholder="Master Password">
-  <button id="decryptBtn">Download & Decrypt</button>
+  <section>
+    <h2>Download & Decrypt File</h2>
+    <select id="fileList"></select>
+    <input type="password" id="decryptPassword" placeholder="Master Password">
+    <button id="decryptBtn">Download & Decrypt</button>
+  </section>
 </body>
 </html>
+
