@@ -1,7 +1,7 @@
 // ===== CONFIG =====
 const msalConfig = {
   auth: {
-    clientId: "YOUR_CLIENT_ID", // Replace with your Azure app client ID
+    clientId: 10205ada-7ccc-48b1-8919-0ad38685e6e5, // Replace with your Azure app client ID
     redirectUri: window.location.origin
   }
 };
@@ -141,3 +141,4 @@ async function refreshFileList() {
 // ===== EVENT LISTENERS =====
 document.getElementById("encryptBtn").onclick = encryptAndUpload;
 document.getElementById("decryptBtn").onclick = downloadAndDecrypt;
+
