@@ -1,146 +1,231 @@
-// ===== CONFIG =====
+//--------------------------------------------------------------------------
+// IMPORT MSAL.JS
+//--------------------------------------------------------------------------
+
+import { PublicClientApplication } 
+    from "https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.esm.min.js";
+
+
+//--------------------------------------------------------------------------
+// 1. MICROSOFT APP CONFIGURATION
+//--------------------------------------------------------------------------
+
 const msalConfig = {
-  auth: {
-    clientId: 10205ada-7ccc-48b1-8919-0ad38685e6e5, // Replace with your Azure app client ID
-    redirectUri: "https://jarned-rs.github.io/SecureFileEncryption/"
-  }
+    auth: {
+        clientId: "10205ada-7ccc-48b1-8919-0ad38685e6e5",
+        redirectUri: "https://jarned-rs.github.io/SecureFileEncryption/"
+    }
 };
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
-const loginRequest = { scopes: ["User.Read", "Files.ReadWrite.All"] };
-const oneDriveFolder = "SecureEncryptedFiles";
+const msalInstance = new PublicClientApplication(msalConfig);
+let accessToken = null;
 
-// ===== LOGIN =====
-document.getElementById("signInBtn").onclick = async () => {
-  try {
-    await msalInstance.loginPopup(loginRequest);
-    alert("Signed in!");
-    await refreshFileList();
-  } catch (err) {
-    console.error(err);
-    alert("Login failed");
-  }
-};
 
-// ===== GET ACCESS TOKEN =====
-async function getAccessToken() {
-  try {
-    const tokenResponse = await msalInstance.acquireTokenSilent(loginRequest);
-    return tokenResponse.accessToken;
-  } catch {
-    const tokenResponse = await msalInstance.acquireTokenPopup(loginRequest);
-    return tokenResponse.accessToken;
-  }
+//--------------------------------------------------------------------------
+// 2. LOGIN & LOGOUT
+//--------------------------------------------------------------------------
+
+async function login() {
+    try {
+        const result = await msalInstance.loginPopup({
+            scopes: ["Files.ReadWrite"]
+        });
+
+        accessToken = result.accessToken;
+
+        document.getElementById("signin").classList.add("hidden");
+        document.getElementById("signout").classList.remove("hidden");
+        document.getElementById("app").classList.remove("hidden");
+
+        loadFiles();
+    } catch (err) {
+        alert("Login failed: " + err.message);
+    }
 }
 
-// ===== GRAPH API CALL =====
-async function callGraph(endpoint, method="GET", body=null) {
-  const token = await getAccessToken();
-  const headers = { Authorization: `Bearer ${token}` };
-  if (body) headers["Content-Type"] = "application/octet-stream";
-
-  const res = await fetch(`https://graph.microsoft.com/v1.0${endpoint}`, {
-    method, headers, body
-  });
-
-  if (!res.ok) throw new Error(`Graph API error: ${res.status}`);
-  if (method === "GET") return res.json ? await res.json() : await res.arrayBuffer();
-  return await res.json();
+async function logout() {
+    await msalInstance.logoutPopup();
+    location.reload();
 }
 
-// ===== ENCRYPTION HELPERS =====
-async function deriveKey(password, salt) {
-  const enc = new TextEncoder();
-  const baseKey = await crypto.subtle.importKey(
-    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
-    baseKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt","decrypt"]
-  );
+document.getElementById("signin").onclick = login;
+document.getElementById("signout").onclick = logout;
+
+
+//--------------------------------------------------------------------------
+// 3. CRYPTOGRAPHY — AES-GCM ENCRYPTION
+//--------------------------------------------------------------------------
+
+async function deriveKey(password) {
+    const enc = new TextEncoder();
+
+    // Convert password → PBKDF2 key
+    const baseKey = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+    );
+
+    // Derive AES-GCM key
+    return await crypto.subtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt: enc.encode("onedrive-salt"),
+            iterations: 100_000,
+            hash: "SHA-256"
+        },
+        baseKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+    );
 }
 
-function concatBuffers(buffers) {
-  let total = buffers.reduce((acc,b) => acc + b.byteLength,0);
-  let temp = new Uint8Array(total);
-  let offset=0;
-  for(let b of buffers) {
-    temp.set(new Uint8Array(b), offset);
-    offset+=b.byteLength;
-  }
-  return temp.buffer;
+async function encryptFile(password, fileBytes) {
+    const key = await deriveKey(password);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    const encrypted = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        fileBytes
+    );
+
+    // Combine IV + encrypted data
+    const combined = new Uint8Array(iv.byteLength + encrypted.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(encrypted), iv.byteLength);
+
+    return combined;
 }
 
-// ===== ENCRYPT & UPLOAD =====
-async function encryptAndUpload() {
-  const fileInput = document.getElementById("encryptFileInput");
-  const password = document.getElementById("encryptPassword").value;
-  if (!fileInput.files.length || !password) return alert("Select file and enter password");
+async function decryptFile(password, encryptedBytes) {
+    const key = await deriveKey(password);
 
-  const file = fileInput.files[0];
-  const fileBuffer = await file.arrayBuffer();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(password, salt);
+    const iv = encryptedBytes.slice(0, 12);
+    const data = encryptedBytes.slice(12);
 
-  const ciphertext = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, fileBuffer);
-  const combined = concatBuffers([salt.buffer, iv.buffer, ciphertext]);
-
-  await callGraph(`/me/drive/root:/${oneDriveFolder}/${file.name}.enc:/content`, "PUT", combined);
-  alert("Encrypted file uploaded!");
-  await refreshFileList();
+    return await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        key,
+        data
+    );
 }
 
-// ===== DOWNLOAD & DECRYPT =====
-async function downloadAndDecrypt() {
-  const select = document.getElementById("fileList");
-  const fileId = select.value;
-  const password = document.getElementById("decryptPassword").value;
-  if (!fileId || !password) return alert("Select a file and enter password");
 
-  const token = await getAccessToken();
-  const res = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const arrayBuffer = await res.arrayBuffer();
+//--------------------------------------------------------------------------
+// 4. ONEDRIVE API — UPLOAD, LIST, DOWNLOAD
+//--------------------------------------------------------------------------
 
-  const salt = arrayBuffer.slice(0,16);
-  const iv = arrayBuffer.slice(16,28);
-  const ciphertext = arrayBuffer.slice(28);
-  const key = await deriveKey(password, salt);
-  const plaintext = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ciphertext);
+async function uploadEncryptedFile() {
+    const file = document.getElementById("fileInput").files[0];
+    const password = document.getElementById("password").value;
 
-  const blob = new Blob([plaintext]);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "decrypted";
-  a.click();
-}
+    if (!file) {
+        alert("Choose a file first.");
+        return;
+    }
+    if (!password) {
+        alert("Enter a password first.");
+        return;
+    }
 
-// ===== REFRESH FILE LIST =====
-async function refreshFileList() {
-  try {
-    const data = await callGraph(`/me/drive/root:/${oneDriveFolder}:/children`);
-    const select = document.getElementById("fileList");
-    select.innerHTML = "";
-    data.value.forEach(item => {
-      const opt = document.createElement("option");
-      opt.value = item.id;
-      opt.textContent = item.name;
-      select.appendChild(opt);
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+    const encryptedBytes = await encryptFile(password, fileBytes);
+
+    const uploadUrl =
+        "https://graph.microsoft.com/v1.0/me/drive/root:/SecureEncryptedFiles/" +
+        encodeURIComponent(file.name + ".enc") +
+        ":/content";
+
+    await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/octet-stream"
+        },
+        body: encryptedBytes
     });
-  } catch(err) {
-    console.error(err);
-  }
+
+    alert("Encrypted file uploaded.");
+    loadFiles();
 }
 
-// ===== EVENT LISTENERS =====
-document.getElementById("encryptBtn").onclick = encryptAndUpload;
-document.getElementById("decryptBtn").onclick = downloadAndDecrypt;
+document.getElementById("uploadBtn").onclick = uploadEncryptedFile;
 
+
+//--------------------------------------------------------------------------
+// LOAD FILE LIST
+//--------------------------------------------------------------------------
+
+async function loadFiles() {
+    const listUrl =
+        "https://graph.microsoft.com/v1.0/me/drive/root:/SecureEncryptedFiles:/children";
+
+    const res = await fetch(listUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const data = await res.json();
+    const fileList = document.getElementById("fileList");
+    fileList.innerHTML = "";
+
+    if (!data.value) return;
+
+    data.value.forEach(file => {
+        const li = document.createElement("li");
+        li.textContent = file.name;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Download & Decrypt";
+        btn.className = "btn";
+        btn.style.marginLeft = "10px";
+
+        btn.onclick = () => downloadAndDecrypt(file.name);
+
+        li.appendChild(btn);
+        fileList.appendChild(li);
+    });
+}
+
+
+//--------------------------------------------------------------------------
+// DOWNLOAD + DECRYPT
+//--------------------------------------------------------------------------
+
+async function downloadAndDecrypt(filename) {
+    const password = document.getElementById("password").value;
+
+    if (!password) {
+        alert("Enter your password first.");
+        return;
+    }
+
+    const downloadUrl =
+        "https://graph.microsoft.com/v1.0/me/drive/root:/SecureEncryptedFiles/" +
+        encodeURIComponent(filename) +
+        ":/content";
+
+    const res = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const encryptedBytes = new Uint8Array(await res.arrayBuffer());
+
+    try {
+        const decrypted = await decryptFile(password, encryptedBytes);
+
+        // Create download link
+        const blob = new Blob([decrypted]);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename.replace(".enc", "");
+        a.click();
+    } catch (err) {
+        alert("Incorrect password or corrupted file.");
+    }
+}
 
 
