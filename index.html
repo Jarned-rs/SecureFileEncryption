@@ -1,31 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Secure File Manager</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- MSAL.js from CDN -->
-  <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
-  <script src="script.js" defer></script>
+    <meta charset="UTF-8">
+    <title>Secure OneDrive File Vault</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="script.js" defer></script>
 </head>
 <body>
-  <h1>Secure File Manager</h1>
+    <div class="container">
+        <h1>Secure OneDrive File Vault</h1>
 
-  <button id="signInBtn">Sign in to OneDrive</button>
+        <button id="signin" class="btn">Sign in to OneDrive</button>
+        <button id="signout" class="btn hidden">Sign out</button>
 
-  <section>
-    <h2>Encrypt & Upload File</h2>
-    <input type="file" id="encryptFileInput">
-    <input type="password" id="encryptPassword" placeholder="Master Password">
-    <button id="encryptBtn">Encrypt & Upload</button>
-  </section>
+        <div id="app" class="hidden">
 
-  <section>
-    <h2>Download & Decrypt File</h2>
-    <select id="fileList"></select>
-    <input type="password" id="decryptPassword" placeholder="Master Password">
-    <button id="decryptBtn">Download & Decrypt</button>
-  </section>
+            <h2>Encryption Password</h2>
+            <input type="password" id="password" placeholder="Enter password">
+
+            <h2>Upload File</h2>
+            <input type="file" id="fileInput">
+            <button id="uploadBtn" class="btn">Encrypt & Upload</button>
+
+            <h2>Your Encrypted Files</h2>
+            <ul id="fileList"></ul>
+        </div>
+    </div>
 </body>
 </html>
 
