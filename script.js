@@ -12,7 +12,7 @@ import { PublicClientApplication }
 
 const msalConfig = {
     auth: {
-        clientId: "10205ada-7ccc-48b1-8919-0ad38685e6e5",
+        clientId: "125e8766-e691-4734-86e8-83d9a3e603b3",
         redirectUri: "https://jarned-rs.github.io/SecureFileEncryption/"
     }
 };
@@ -227,5 +227,6 @@ async function downloadAndDecrypt(filename) {
         alert("Incorrect password or corrupted file.");
     }
 }
+
 
 
