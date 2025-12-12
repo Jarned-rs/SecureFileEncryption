@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF‑8">
+  <title>Secure File Manager</title>
+  <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
+  <script src="script.js"></script>
+</head>
+<body>
+  <h1>Secure File Manager</h1>
+
+  <button id="signInBtn">Sign in to OneDrive</button>
+
+  <h2>Encrypt & Upload File</h2>
+  <input type="file" id="encryptFileInput">
+  <input type="password" id="encryptPassword" placeholder="Master Password">
+  <button id="encryptBtn">Encrypt & Upload</button>
+
+  <h2>Download & Decrypt File</h2>
+  <select id="fileList"></select>
+  <input type="password" id="decryptPassword" placeholder="Master Password">
+  <button id="decryptBtn">Download & Decrypt</button>
+</body>
+</html>
