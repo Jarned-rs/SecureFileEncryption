@@ -1,31 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Secure OneDrive File Vault</title>
-    <link rel="stylesheet" href="style.css">
-    <script type="module" src="script.js" defer></script>
+  <meta charset="UTF-8">
+  <title>Secure OneDrive File Vault</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="script.js" defer></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Secure OneDrive File Vault</h1>
+  <div class="container">
+    <h1>Secure OneDrive File Vault</h1>
 
-        <button id="signin" class="btn">Sign in to OneDrive</button>
-        <button id="signout" class="btn hidden">Sign out</button>
+    <button id="signin" class="btn">Sign in to OneDrive</button>
+    <button id="signout" class="btn hidden">Sign out</button>
 
-        <div id="app" class="hidden">
+    <div id="app" class="hidden">
+      <h2>Encryption Password</h2>
+      <input type="password" id="password" placeholder="Enter password">
 
-            <h2>Encryption Password</h2>
-            <input type="password" id="password" placeholder="Enter password">
+      <h2>Upload File</h2>
+      <input type="file" id="fileInput">
+      <button id="uploadBtn" class="btn">Encrypt & Upload</button>
 
-            <h2>Upload File</h2>
-            <input type="file" id="fileInput">
-            <button id="uploadBtn" class="btn">Encrypt & Upload</button>
-
-            <h2>Your Encrypted Files</h2>
-            <ul id="fileList"></ul>
-        </div>
+      <h2>Your Encrypted Files</h2>
+      <ul id="fileList"></ul>
     </div>
+  </div>
 </body>
 </html>
-
